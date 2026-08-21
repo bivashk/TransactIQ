@@ -5,6 +5,10 @@ business metrics, customer segments, and revenue forecast in one view.
 Run with: streamlit run src/dashboard.py
 """
 
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 import streamlit as st
 import sqlite3
 import pandas as pd
@@ -13,7 +17,7 @@ import matplotlib.pyplot as plt
 from segmentation import run_segmentation, summarize_segments
 from forecasting import get_monthly_revenue, forecast_revenue
 
-DB_PATH = "transactiq.db"
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "transactiq.db")
 
 st.set_page_config(page_title="TransactIQ | Payments Analytics", layout="wide")
 st.title("TransactIQ — Digital Payments Analytics Dashboard")

@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
 import matplotlib.pyplot as plt
 
 DB_PATH = "transactiq.db"
@@ -31,6 +32,51 @@ def get_rfm_data():
     df = pd.read_sql_query(query, conn)
     conn.close()
     return df
+
+
+def evaluate_cluster_count(k_min=2, k_max=8):
+    rfm = get_rfm_data()
+    features = rfm[["recency_days", "frequency", "monetary"]]
+    scaler = StandardScaler()
+    scaled = scaler.fit_transform(features)
+
+    results = []
+    for k in range(k_min, k_max + 1):
+        kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
+        labels = kmeans.fit_predict(scaled)
+        results.append({
+            "k": k,
+            "inertia": kmeans.inertia_,
+            "silhouette_score": silhouette_score(scaled, labels)
+        })
+
+    return pd.DataFrame(results)
+
+
+def plot_elbow_silhouette(eval_df, out_path="visuals/elbow_silhouette.png"):
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+    primary_color = "#5F259F"
+
+    # Left panel: Inertia vs k (Elbow Method)
+    axes[0].plot(eval_df["k"], eval_df["inertia"], marker="o", color=primary_color, linewidth=2)
+    axes[0].set_xlabel("Number of Clusters (k)")
+    axes[0].set_ylabel("Inertia")
+    axes[0].set_title("Elbow Method: Inertia vs k")
+    axes[0].set_xticks(eval_df["k"])
+    axes[0].grid(True, linestyle="--", alpha=0.5)
+
+    # Right panel: Silhouette Score vs k
+    axes[1].plot(eval_df["k"], eval_df["silhouette_score"], marker="o", color=primary_color, linewidth=2)
+    axes[1].set_xlabel("Number of Clusters (k)")
+    axes[1].set_ylabel("Silhouette Score")
+    axes[1].set_title("Silhouette Score vs k")
+    axes[1].set_xticks(eval_df["k"])
+    axes[1].grid(True, linestyle="--", alpha=0.5)
+
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=150)
+    print(f"Saved elbow and silhouette plot to {out_path}")
 
 
 def run_segmentation(n_clusters=4):
@@ -109,10 +155,15 @@ def plot_segments(rfm, out_path="visuals/customer_segments.png"):
 
 
 if __name__ == "__main__":
+    print("=== Evaluating Optimal Cluster Count (k=2..8) ===")
+    eval_df = evaluate_cluster_count()
+    print(eval_df.to_string(index=False))
+    plot_elbow_silhouette(eval_df)
+
     rfm, centroids, label_map = run_segmentation()
     summary = summarize_segments(rfm)
 
-    print("=== Segment Summary ===")
+    print("\n=== Segment Summary ===")
     print(summary.to_string())
 
     plot_segments(rfm)
