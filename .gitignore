@@ -1,9 +1,6 @@
 # Virtual environment
 .venv/
 
-# Database
-*.db
-
 # Python
 __pycache__/
 *.pyc

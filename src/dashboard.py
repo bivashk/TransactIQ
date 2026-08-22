@@ -21,8 +21,26 @@ from forecasting import get_monthly_revenue, forecast_revenue
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(BASE_DIR, "transactiq.db")
 
-if not os.path.exists(DB_PATH):
-    init_db()
+
+def ensure_db():
+    needs_init = False
+    if not os.path.exists(DB_PATH) or os.path.getsize(DB_PATH) == 0:
+        needs_init = True
+    else:
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cur = conn.cursor()
+            res = cur.execute("SELECT COUNT(*) FROM transactions").fetchone()
+            conn.close()
+            if not res or res[0] == 0:
+                needs_init = True
+        except Exception:
+            needs_init = True
+    if needs_init:
+        init_db()
+
+
+ensure_db()
 
 st.set_page_config(page_title="TransactIQ | Payments Analytics", layout="wide")
 st.title("TransactIQ — Digital Payments Analytics Dashboard")
@@ -31,16 +49,17 @@ st.caption("SQL-driven analytics, customer segmentation & revenue forecasting on
 
 @st.cache_data
 def load_kpis():
+    ensure_db()
     conn = sqlite3.connect(DB_PATH)
     total_revenue = pd.read_sql_query(
-        "SELECT SUM(amount) as v FROM transactions WHERE status='SUCCESS'", conn).iloc[0]["v"]
+        "SELECT COALESCE(SUM(amount), 0) as v FROM transactions WHERE status='SUCCESS'", conn).iloc[0]["v"]
     total_txns = pd.read_sql_query("SELECT COUNT(*) as v FROM transactions", conn).iloc[0]["v"]
     total_users = pd.read_sql_query("SELECT COUNT(*) as v FROM users", conn).iloc[0]["v"]
     failure_rate = pd.read_sql_query(
-        "SELECT 100.0*SUM(CASE WHEN status='FAILED' THEN 1 ELSE 0 END)/COUNT(*) as v FROM transactions", conn
+        "SELECT CASE WHEN COUNT(*) = 0 THEN 0.0 ELSE 100.0*SUM(CASE WHEN status='FAILED' THEN 1 ELSE 0 END)/COUNT(*) END as v FROM transactions", conn
     ).iloc[0]["v"]
     conn.close()
-    return total_revenue, total_txns, total_users, failure_rate
+    return float(total_revenue or 0.0), int(total_txns or 0), int(total_users or 0), float(failure_rate or 0.0)
 
 
 total_revenue, total_txns, total_users, failure_rate = load_kpis()
@@ -59,11 +78,12 @@ with col1:
     st.subheader("Monthly Revenue Trend & Forecast")
     historical = get_monthly_revenue()
     forecast, _, growth_rate = forecast_revenue(historical)
-
     fig, ax = plt.subplots(figsize=(6, 4))
     ax.plot(historical["month"], historical["revenue"], marker="o", color="#5F259F", label="Actual")
     ax.plot(forecast["month"], forecast["forecast_revenue"], marker="o", linestyle="--", color="#00B9F1", label="Forecast")
-    ax.set_xticklabels(list(historical["month"]) + list(forecast["month"]), rotation=45, fontsize=7)
+    all_months = list(historical["month"]) + list(forecast["month"])
+    ax.set_xticks(range(len(all_months)))
+    ax.set_xticklabels(all_months, rotation=45, fontsize=7)
     ax.legend()
     st.pyplot(fig)
     st.info(f"Projected revenue growth over next 3 months: **{growth_rate:.1f}%**")
