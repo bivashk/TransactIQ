@@ -10,8 +10,9 @@ import sqlite3
 import pandas as pd
 import os
 
-DB_PATH = "transactiq.db"
-SCHEMA_PATH = "sql/schema.sql"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_PATH = os.path.join(BASE_DIR, "transactiq.db")
+SCHEMA_PATH = os.path.join(BASE_DIR, "sql", "schema.sql")
 
 def main():
     if os.path.exists(DB_PATH):
@@ -23,9 +24,9 @@ def main():
     with open(SCHEMA_PATH, "r") as f:
         cur.executescript(f.read())
 
-    users = pd.read_csv("data/users.csv")
-    merchants = pd.read_csv("data/merchants.csv")
-    transactions = pd.read_csv("data/transactions.csv")
+    users = pd.read_csv(os.path.join(BASE_DIR, "data", "users.csv"))
+    merchants = pd.read_csv(os.path.join(BASE_DIR, "data", "merchants.csv"))
+    transactions = pd.read_csv(os.path.join(BASE_DIR, "data", "transactions.csv"))
 
     users.to_sql("users", conn, if_exists="append", index=False)
     merchants.to_sql("merchants", conn, if_exists="append", index=False)

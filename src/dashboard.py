@@ -14,10 +14,15 @@ import sqlite3
 import pandas as pd
 import matplotlib.pyplot as plt
 
+from load_to_db import main as init_db
 from segmentation import run_segmentation, summarize_segments
 from forecasting import get_monthly_revenue, forecast_revenue
 
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "transactiq.db")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_PATH = os.path.join(BASE_DIR, "transactiq.db")
+
+if not os.path.exists(DB_PATH):
+    init_db()
 
 st.set_page_config(page_title="TransactIQ | Payments Analytics", layout="wide")
 st.title("TransactIQ — Digital Payments Analytics Dashboard")

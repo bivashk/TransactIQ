@@ -6,6 +6,7 @@ scaling + clustering in Python, and labels clusters with business-
 readable segment names based on their centroid characteristics.
 """
 
+import os
 import sqlite3
 import pandas as pd
 import numpy as np
@@ -14,7 +15,8 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 import matplotlib.pyplot as plt
 
-DB_PATH = "transactiq.db"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_PATH = os.path.join(BASE_DIR, "transactiq.db")
 
 
 def get_rfm_data():

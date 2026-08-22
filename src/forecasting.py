@@ -6,6 +6,7 @@ monthly revenue series via SQL, fits the model in Python, and produces
 both a numeric forecast table and a trend chart with confidence bounds.
 """
 
+import os
 import sqlite3
 import pandas as pd
 import numpy as np
@@ -13,7 +14,8 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score, mean_squared_error
 import matplotlib.pyplot as plt
 
-DB_PATH = "transactiq.db"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_PATH = os.path.join(BASE_DIR, "transactiq.db")
 
 
 def get_monthly_revenue():
