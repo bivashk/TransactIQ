@@ -1,0 +1,24 @@
+{
+  "source_rows": 1067371,
+  "retained_lines": 1021434,
+  "excluded_lines": 45937,
+  "exclusion_counts": {
+    "exact_duplicate": 34335,
+    "invalid_price": 6019,
+    "non_merchandise_adjustment": 5566,
+    "invalid_line_value": 17
+  },
+  "retained_lines_missing_customer": 227268,
+  "purchase_lines": 1003420,
+  "cancellation_lines": 18014,
+  "gross_sales_gbp": 19645754.64,
+  "cancellation_value_gbp": 722660.09,
+  "net_recorded_value_gbp": 18923094.55,
+  "first_date": "2009-12-01 07:45:00",
+  "last_date": "2011-12-09 12:50:00",
+  "duplicate_policy": "Remove exact source-row duplicates; identical legitimate lines cannot be distinguished.",
+  "value_policy": "Merchandise values only; cancellation/negative-quantity lines signed negative. Not audited revenue or profit.",
+  "source": "https://archive.ics.uci.edu/dataset/502/online+retail+ii",
+  "source_file": "online_retail_ii.zip",
+  "sha256": "572e36277c2390fbfde10664750731e0a86f55e33470d91919085f0408e67bfb"
+}

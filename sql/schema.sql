@@ -1,35 +1,20 @@
--- schema.sql
--- Normalized relational schema for the digital payments analytics database.
--- Written in standard SQL; compatible with PostgreSQL and SQLite.
-
-DROP TABLE IF EXISTS transactions;
-DROP TABLE IF EXISTS users;
-DROP TABLE IF EXISTS merchants;
-
-CREATE TABLE users (
-    user_id            VARCHAR(10) PRIMARY KEY,
-    city                VARCHAR(50) NOT NULL,
-    signup_month_offset INTEGER NOT NULL,
-    archetype           VARCHAR(30)
+PRAGMA foreign_keys = ON;
+CREATE TABLE customers (customer_id TEXT PRIMARY KEY);
+CREATE TABLE products (stock_code TEXT PRIMARY KEY, description TEXT NOT NULL);
+CREATE TABLE invoice_lines (
+    line_id INTEGER PRIMARY KEY,
+    invoice_no TEXT NOT NULL,
+    stock_code TEXT NOT NULL REFERENCES products(stock_code),
+    customer_id TEXT REFERENCES customers(customer_id),
+    invoice_date TEXT NOT NULL,
+    country TEXT NOT NULL,
+    quantity INTEGER NOT NULL CHECK(quantity != 0),
+    unit_price REAL NOT NULL CHECK(unit_price > 0),
+    is_cancellation INTEGER NOT NULL CHECK(is_cancellation IN (0, 1)),
+    amount_pence INTEGER NOT NULL,
+    CHECK ((is_cancellation = 0 AND amount_pence > 0) OR (is_cancellation = 1 AND amount_pence < 0))
 );
-
-CREATE TABLE merchants (
-    merchant_id     VARCHAR(10) PRIMARY KEY,
-    merchant_name   VARCHAR(100) NOT NULL,
-    category        VARCHAR(50) NOT NULL
-);
-
-CREATE TABLE transactions (
-    txn_id       VARCHAR(10) PRIMARY KEY,
-    user_id      VARCHAR(10) NOT NULL REFERENCES users(user_id),
-    merchant_id  VARCHAR(10) NOT NULL REFERENCES merchants(merchant_id),
-    category     VARCHAR(50) NOT NULL,
-    amount       NUMERIC(10, 2) NOT NULL,
-    txn_date     DATE NOT NULL,
-    city         VARCHAR(50) NOT NULL,
-    status       VARCHAR(10) NOT NULL
-);
-
-CREATE INDEX idx_txn_user ON transactions(user_id);
-CREATE INDEX idx_txn_date ON transactions(txn_date);
-CREATE INDEX idx_txn_category ON transactions(category);
+CREATE INDEX idx_lines_customer_date ON invoice_lines(customer_id, invoice_date);
+CREATE INDEX idx_lines_date ON invoice_lines(invoice_date);
+CREATE INDEX idx_lines_product ON invoice_lines(stock_code);
+CREATE VIEW purchases AS SELECT * FROM invoice_lines WHERE is_cancellation = 0;

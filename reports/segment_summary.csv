@@ -1,0 +1,3 @@
+segment,customers,avg_recency_days,avg_orders,avg_spend_gbp,gross_sales_gbp,customer_share_pct,sales_share_pct,recommended_action
+High-value active,1640,24.968625931571815,8.13109756097561,4362.888865853659,7155137.74,38.488617695376675,84.88789849930956,Prioritize service and loyalty benefits; test against a randomized control group.
+At-risk / inactive,2621,127.3244478358557,1.6379244563143838,485.99304845478827,1273787.78,61.511382304623325,15.112101500690446,Test a targeted re-engagement offer; inactivity is not confirmed churn.

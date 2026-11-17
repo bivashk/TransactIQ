@@ -13,3 +13,14 @@ __pycache__/
 # IDE
 .vscode/
 .idea/
+
+# Reproducible local inputs and database
+.cache/
+data/raw/
+retail.db
+retail.db-*
+reports/excluded_lines.csv
+reports/customer_segments.csv
+reports/customer_future_outcomes.csv
+legacy/synthetic/data/*.csv
+legacy/synthetic/visuals/*.png

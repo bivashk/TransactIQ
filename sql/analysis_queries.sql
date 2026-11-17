@@ -1,83 +1,66 @@
--- analysis_queries.sql
--- Core business-analytics queries demonstrating SQL proficiency on
--- multi-dimensional transactional data.
+-- 1. Monthly merchandise value and true month-over-month gross sales growth.
+WITH monthly AS (
+    SELECT strftime('%Y-%m', invoice_date) AS month,
+           SUM(CASE WHEN is_cancellation=0 THEN amount_pence ELSE 0 END)/100.0 AS gross_sales_gbp,
+           -SUM(CASE WHEN is_cancellation=1 THEN amount_pence ELSE 0 END)/100.0 AS cancellation_value_gbp,
+           SUM(amount_pence)/100.0 AS net_recorded_value_gbp
+    FROM invoice_lines GROUP BY month
+), lagged AS (
+    SELECT *, LAG(gross_sales_gbp) OVER (ORDER BY month) AS previous_month_gbp FROM monthly
+)
+SELECT *, 100.0*(gross_sales_gbp-previous_month_gbp)/NULLIF(previous_month_gbp,0) AS mom_growth_pct
+FROM lagged ORDER BY month;
 
--- 1. Month-over-month revenue and transaction volume trend
-SELECT
-    strftime('%Y-%m', txn_date) AS month,
-    COUNT(*) AS total_txns,
-    SUM(CASE WHEN status = 'SUCCESS' THEN amount ELSE 0 END) AS total_revenue,
-    ROUND(100.0 * SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) / COUNT(*), 2) AS failure_rate_pct
-FROM transactions
-GROUP BY month
-ORDER BY month;
+-- 2. Country sales and distinct purchasing customers. Anonymous sales are included.
+SELECT country, COUNT(DISTINCT customer_id) AS known_customers,
+       COUNT(DISTINCT invoice_no) AS purchase_invoices, SUM(amount_pence)/100.0 AS gross_sales_gbp
+FROM purchases GROUP BY country ORDER BY gross_sales_gbp DESC;
 
--- 2. Category-wise contribution to revenue
-SELECT
-    category,
-    COUNT(*) AS txn_count,
-    SUM(amount) AS total_revenue,
-    ROUND(AVG(amount), 2) AS avg_txn_value,
-    ROUND(100.0 * SUM(amount) / (SELECT SUM(amount) FROM transactions WHERE status='SUCCESS'), 2) AS pct_of_total_revenue
-FROM transactions
-WHERE status = 'SUCCESS'
-GROUP BY category
-ORDER BY total_revenue DESC;
+-- 3. Product sales, no invented merchant or category labels.
+SELECT p.stock_code, p.description, SUM(l.quantity) AS units,
+       SUM(l.amount_pence)/100.0 AS gross_sales_gbp
+FROM purchases l JOIN products p USING(stock_code)
+GROUP BY p.stock_code, p.description ORDER BY gross_sales_gbp DESC LIMIT 20;
 
--- 3. Top 10 cities by revenue and average transaction value
-SELECT
-    city,
-    COUNT(DISTINCT user_id) AS active_users,
-    SUM(amount) AS total_revenue,
-    ROUND(SUM(amount) / COUNT(DISTINCT user_id), 2) AS revenue_per_user
-FROM transactions
-WHERE status = 'SUCCESS'
-GROUP BY city
-ORDER BY total_revenue DESC
-LIMIT 10;
+-- 4. Cancellation invoice share (not a payment-failure or matched return rate).
+SELECT country, COUNT(DISTINCT invoice_no) AS recorded_invoices,
+       COUNT(DISTINCT CASE WHEN is_cancellation=1 THEN invoice_no END) AS cancellation_invoices,
+       100.0*COUNT(DISTINCT CASE WHEN is_cancellation=1 THEN invoice_no END)/COUNT(DISTINCT invoice_no) AS cancellation_invoice_share_pct
+FROM invoice_lines GROUP BY country HAVING COUNT(DISTINCT invoice_no)>=30
+ORDER BY cancellation_invoice_share_pct DESC;
 
--- 4. Monthly active users and retention proxy (users active in consecutive months)
-SELECT
-    strftime('%Y-%m', txn_date) AS month,
-    COUNT(DISTINCT user_id) AS monthly_active_users
-FROM transactions
-WHERE status = 'SUCCESS'
-GROUP BY month
-ORDER BY month;
+-- 5. Actual adjacent-month customer retention among known purchasing customers.
+WITH activity AS (
+ SELECT DISTINCT customer_id, date(invoice_date,'start of month') AS month
+ FROM purchases WHERE customer_id IS NOT NULL
+), boundary AS (SELECT MAX(month) AS last_month FROM activity)
+SELECT a.month, COUNT(*) AS active_customers, COUNT(b.customer_id) AS next_month_returners,
+       100.0*COUNT(b.customer_id)/COUNT(*) AS next_month_retention_pct
+FROM activity a LEFT JOIN activity b
+ ON a.customer_id=b.customer_id AND b.month=date(a.month,'+1 month')
+WHERE a.month < (SELECT last_month FROM boundary)
+GROUP BY a.month ORDER BY a.month;
+-- First/last calendar months can be partial, consult coverage before interpretation.
 
--- 5. Top merchants by revenue (identifying high-value partners)
-SELECT
-    m.merchant_name,
-    m.category,
-    COUNT(*) AS txn_count,
-    SUM(t.amount) AS total_revenue
-FROM transactions t
-JOIN merchants m ON t.merchant_id = m.merchant_id
-WHERE t.status = 'SUCCESS'
-GROUP BY m.merchant_id
-ORDER BY total_revenue DESC
-LIMIT 10;
+-- 6. Cohort retention grid using first observed purchase, not signup.
+WITH activity AS (
+ SELECT DISTINCT customer_id, date(invoice_date,'start of month') AS month
+ FROM purchases WHERE customer_id IS NOT NULL
+), cohorts AS (
+ SELECT customer_id, MIN(month) AS cohort_month FROM activity GROUP BY customer_id
+), sizes AS (
+ SELECT cohort_month, COUNT(*) AS cohort_size FROM cohorts GROUP BY cohort_month
+)
+SELECT c.cohort_month, a.month AS activity_month,
+       (CAST(strftime('%Y',a.month) AS INTEGER)-CAST(strftime('%Y',c.cohort_month) AS INTEGER))*12
+       +CAST(strftime('%m',a.month) AS INTEGER)-CAST(strftime('%m',c.cohort_month) AS INTEGER) AS months_since_first_purchase,
+       COUNT(*) AS active_customers, s.cohort_size,
+       100.0*COUNT(*)/s.cohort_size AS retention_pct
+FROM activity a JOIN cohorts c USING(customer_id) JOIN sizes s USING(cohort_month)
+GROUP BY c.cohort_month,a.month ORDER BY c.cohort_month,a.month;
 
--- 6. Payment failure hotspots — categories/cities with elevated failure rates
--- (useful for flagging reliability issues to stakeholders)
-SELECT
-    category,
-    city,
-    COUNT(*) AS total_txns,
-    ROUND(100.0 * SUM(CASE WHEN status='FAILED' THEN 1 ELSE 0 END) / COUNT(*), 2) AS failure_rate_pct
-FROM transactions
-GROUP BY category, city
-HAVING COUNT(*) > 30
-ORDER BY failure_rate_pct DESC
-LIMIT 10;
-
--- 7. RFM base query — Recency, Frequency, Monetary value per user
--- (feeds directly into the Python segmentation step)
-SELECT
-    user_id,
-    JULIANDAY((SELECT MAX(txn_date) FROM transactions)) - JULIANDAY(MAX(txn_date)) AS recency_days,
-    COUNT(*) AS frequency,
-    SUM(amount) AS monetary
-FROM transactions
-WHERE status = 'SUCCESS'
-GROUP BY user_id;
+-- 7. Anonymous coverage: missing IDs are excluded from RFM, not total sales.
+SELECT COUNT(*) AS purchase_lines,
+       SUM(CASE WHEN customer_id IS NULL THEN 1 ELSE 0 END) AS anonymous_purchase_lines,
+       SUM(CASE WHEN customer_id IS NULL THEN amount_pence ELSE 0 END)/100.0 AS anonymous_sales_gbp
+FROM purchases;

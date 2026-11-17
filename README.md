@@ -1,113 +1,151 @@
-# TransactIQ — Digital Payments Transaction Analytics & Customer Segmentation
+# TransactIQ — Customer Retention & Sales Analytics
 
-An end-to-end analytics platform simulating a digital payments platform's transaction data, built to answer core business and financial operations questions: *Where is revenue coming from? Which customer segments drive growth? What is our near-term trajectory?*
+An end-to-end analytics case study using **real retail invoice records**, built to answer:
 
-The project combines **SQL-driven business analysis**, **RFM-based K-Means customer segmentation** with cluster validation (Elbow & Silhouette), **harmonic seasonal revenue forecasting**, an **interactive Streamlit dashboard**, and a **25-test pytest suite** on a 79,000+ row multi-dimensional transactional dataset (2,000 users, 150 merchants, 12 months, 9 spend categories, 10 cities).
+- Which customers should a retailer prioritize for loyalty and re-engagement experiments?
+- Do customer segments built from earlier purchases distinguish later repeat purchasing?
+- How accurately can weekly sales be forecast compared with simple baselines?
+- Where are recorded cancellations concentrated, and how do customer cohorts retain?
 
----
+**Python · SQL/SQLite · pandas · scikit-learn · Streamlit · pytest**
 
-## 🎯 Key Business Insights
+## Real data, honest scope
 
-- **Pareto-Distributed Customer Value**: The top **~5.7% of users** (*High-Value Loyalists* — high frequency, high spend, active within <1 day) generate **36.3% of total revenue**, while **~3.1%** (*At-Risk/Dormant* — inactive for >150 days on average) contribute virtually 0.2%. This provides an empirical basis for targeted VIP retention programs and automated re-engagement workflows.
-- **Strong Seasonal Growth & Forecasting**: Revenue scaled ~17x over 12 months (₹4.3L → ₹72L/month) with sharp festive period surges. A seasonal linear regression model (incorporating yearly harmonic terms) projects **~24% growth over the next quarter**, providing capacity planning inputs.
-- **Category & City Reliability Hotspots**: SQL aggregations surfaced city-category combinations with elevated payment failure rates (>5%), pinpointing gateway/network reliability bottlenecks for engineering and merchant operations teams.
+The source is [UCI Online Retail II](https://archive.ics.uci.edu/dataset/502/online+retail+ii): **1,067,371 invoice line items** from a UK online retailer between December 2009 and December 2011. A line item is not a distinct order. Prices and reports use **GBP**, not INR.
 
----
+This is an offline historical analysis, not a deployed commercial system. Recommendations address real retail decisions; improvements in retention, sales or cost have **not** been measured. The original simulated payments files are archived in `legacy/synthetic/` and never enter this pipeline.
 
-## 🛠️ Tech Stack
+See [generated findings](reports/findings.md) for actual results, including the selected model's held-out performance and limitations. Do not reuse the old synthetic project's numbers.
 
-- **SQL** (SQLite, PostgreSQL-portable) — Relational schema design, indexes, aggregations, correlated subqueries, CASE expressions, window-style metrics.
-- **Python & Pandas / NumPy** — Data simulation, ETL, and vector feature transformations.
-- **scikit-learn** — Standard scaling, K-Means clustering, silhouette scoring, linear & seasonal regression modeling.
-- **Matplotlib** — Multi-panel visual reports (segmentation, elbow curve, forecast bands).
-- **Streamlit** — Executive KPI and analytics dashboard.
-- **pytest** — Comprehensive unit testing suite (25 test cases across segmentation and forecasting).
+## Results from the verified run
 
----
+| Measure | Result |
+|---|---:|
+| Original invoice line items | 1,067,371 |
+| Retained merchandise lines | 1,021,434 |
+| Audited exclusions | 45,937 |
+| Known customers in the latest 365-day segmentation window | 4,261 |
+| Later 90-day purchase rate: high-value active segment | 78.3% |
+| Later 90-day purchase rate: at-risk / inactive segment | 36.5% |
+| Selected weekly sales model | Same-week-last-year baseline |
+| Final 13-week holdout WAPE | 15.6% |
 
-## 📁 Project Structure
+The segment rates describe different historical groups, not an improvement caused by this project. The seasonal baseline beat the trend regressions on both earlier validation and final holdout data.
 
-```
-TransactIQ/
-├── data/
-│   ├── generate_data.py          # Synthetic transaction generator (5 behavioral archetypes)
-│   ├── users.csv                 # 2,000 users
-│   ├── merchants.csv             # 150 merchants
-│   ├── transactions.csv          # 79,374 transactions
-│   └── customer_segments.csv     # Segment-labeled user dataset
-├── sql/
-│   ├── schema.sql                # Normalized relational schema with index definitions
-│   └── analysis_queries.sql      # 7 business analytics & diagnostic SQL queries
-├── src/
-│   ├── load_to_db.py             # Relational SQLite loader
-│   ├── segmentation.py           # RFM extraction, Elbow/Silhouette analysis & K-Means
-│   ├── forecasting.py            # Trend & harmonic seasonal forecasting with R²/RMSE
-│   └── dashboard.py              # Interactive Streamlit analytics dashboard
-├── tests/
-│   ├── test_segmentation.py      # Unit tests for RFM & segmentation logic
-│   └── test_forecasting.py       # Unit tests for aggregation & forecasting logic
-├── visuals/
-│   ├── customer_segments.png     # Frequency vs Monetary & segment share plot
-│   ├── elbow_silhouette.png      # Inertia elbow curve & silhouette score evaluation
-│   └── revenue_forecast.png      # Actual vs Linear & Seasonal forecast bands
-├── requirements.txt              # Pinned direct dependencies
-├── .gitignore
-└── README.md
-```
+![Dashboard preview](visuals/dashboard.png)
 
----
+![Later-purchase validation](visuals/retail_repeat_purchase.png)
 
-## ⚙️ Architecture & Pipeline Walkthrough
+![Forecast evaluation](visuals/retail_sales_forecast.png)
 
-### 1. Relational Schema & SQL Layer
-- `sql/schema.sql`: Normalized 3-table relational schema (`users`, `merchants`, `transactions`) with foreign keys and query-optimized indexes on `user_id`, `txn_date`, and `category`.
-- `sql/analysis_queries.sql`: 7 standalone analytical queries covering MoM growth, category concentration, geographic revenue per user, Monthly Active Users (MAU), top merchant partners, failure hotspots, and base RFM features.
+## Run locally
 
-### 2. Customer Segmentation (RFM + K-Means + Validation)
-- Pulls per-user **Recency, Frequency, and Monetary** metrics via SQL.
-- Evaluates $k=2..8$ using **Inertia (Elbow Method)** and **Silhouette Coefficient** analysis.
-- Clusters users using `StandardScaler` + `KMeans(k=4)`.
-- Applies domain-driven centroid rule mapping (e.g., classifying users as *At-Risk / Dormant* only if recency strictly exceeds the median and 30-day thresholds).
-
-### 3. Revenue Forecasting (Trend & Harmonic Seasonality)
-- Fits linear baseline and harmonic seasonal regression ($\\sin(2\\pi t / 12), \\cos(2\\pi t / 12)$) models.
-- Quantifies model performance using $R^2$ and RMSE metrics.
-- Projects 3-month forward estimates with 95% confidence bounds ($\\pm 1.96\\sigma$).
-
-### 4. Interactive Dashboard & Automated Testing
-- **Dashboard**: Run with `streamlit run src/dashboard.py` to view top-level KPIs, forecast charts, and segment breakdowns.
-- **Testing**: 25 automated unit tests with `pytest` testing data integrity, bounds, segment assignments, and forecast constraints.
-
----
-
-## 🚀 Quickstart
+Python **3.12 or newer** is recommended. From this repository:
 
 ```bash
-# 1. Clone repository & install dependencies
-git clone https://github.com/yourusername/TransactIQ.git
-cd TransactIQ
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 
-# 2. Generate transaction data & load into SQLite database
-python data/generate_data.py
-python src/load_to_db.py
+# Downloads the original ~44 MB UCI archive on first use; imports both year sheets.
+# Excel parsing can take a few minutes.
+python src/pipeline.py
 
-# 3. Run segmentation (generates elbow/silhouette & segment plots)
-python src/segmentation.py
-
-# 4. Run forecasting (computes R²/RMSE & forecast plots)
-python src/forecasting.py
-
-# 5. Run test suite
-pytest
-
-# 6. Launch the interactive dashboard
+# Browse the completed analysis.
 streamlit run src/dashboard.py
+
+# Offline tests use small controlled fixtures, never download the UCI dataset.
+pytest -q
 ```
 
----
+If you already have the original workbook/archive:
 
-## 🔄 PostgreSQL Migration Note
-The schema in `sql/schema.sql` is ANSI-SQL compliant. To use PostgreSQL:
-1. Replace `sqlite3.connect` with `psycopg2` / `SQLAlchemy` engine connections.
-2. In SQL queries, replace SQLite's `strftime('%Y-%m', txn_date)` with `TO_CHAR(txn_date, 'YYYY-MM')`, and `JULIANDAY()` date subtraction with `CURRENT_DATE - txn_date`.
+```bash
+python src/pipeline.py --source /absolute/path/online_retail_II.xlsx
+# Regenerate analysis and charts without re-reading Excel:
+python src/pipeline.py --reuse-db
+```
+
+The dashboard only reads completed data and reports; it never silently rebuilds or downloads a dataset. The source archive and generated SQLite database are excluded from Git. `requirements-lock.txt` records the environment used for the verified local run; `requirements.txt` declares compatible dependency ranges.
+
+## Pipeline and data quality
+
+1. **Source ingestion:** Download the original UCI ZIP, read all workbook sheets, record the source URL and archive SHA-256.
+2. **Reconciliation:** Assign mutually exclusive exclusion reasons. Source rows = retained rows + excluded rows. Report invalid dates, missing invoice/product identifiers, invalid quantities, zero/invalid prices, non-merchandise adjustment codes and exact duplicates. Audited excluded rows are saved locally.
+3. **Database:** Create `customers`, `products` and `invoice_lines` with checks, foreign keys and indexes. Reconcile persisted count and integer-pence totals. Build a temporary database and replace the previous database only after successful validation; reruns do not append duplicates.
+4. **SQL analysis:** Export monthly sales/MoM growth, country and product sales, cancellation hotspots, adjacent-month retention, first-purchase cohorts and anonymous-sales coverage.
+5. **Customer models:** Fit RFM segmentation and validate earlier segments on later purchases.
+6. **Forecast evaluation:** Use earlier rolling validation to select a model, evaluate once on the final holdout, then refit on all complete weeks for a historical forward projection.
+7. **Presentation:** Export reproducible CSV/JSON reports, static figures and a filterable Streamlit dashboard.
+
+### Important cleaning decisions
+
+- **Missing customer IDs:** Keep valid lines in sales and cancellation totals; exclude them from customer segmentation and retention analysis. IDs are not imputed or invented.
+- **Exact duplicates:** Remove identical source rows. The dataset has no reliable line identifier to distinguish an accidental duplicate from an identical legitimate item entry. This assumption can affect totals and is disclosed in the audit.
+- **Cancellations:** Invoice numbers beginning with `C` or negative quantities are cancellation/return-like records. Sign their merchandise amounts negative. They cannot reliably be matched to original sales and are **not failed payments**.
+- **Non-merchandise adjustments:** Explicitly exclude accounting/fulfilment codes such as `POST`, `D`, `M`, `BANK CHARGES` and `DOT`. The full list is in `src/prepare_data.py`; exclusions are audited, not relabeled as products.
+- **Money:** Calculate each line as `abs(quantity) × unit_price`, round to pence, then apply cancellation sign. Gross merchandise sales exclude cancellation lines. Net recorded merchandise value subtracts recorded cancellations; neither metric represents audited revenue or profit.
+- **Descriptions:** Missing descriptions use `Unknown`. Product descriptions can vary, so the product dimension uses the last observed description for display.
+- **Outliers:** High-value valid merchandise records are retained rather than silently trimmed. Gross sales can therefore be volatile.
+
+## Segmentation and later-purchase validation
+
+RFM uses positive merchandise purchase records in the **365 days before an analysis cutoff**:
+
+- **Recency:** Days from the cutoff to the most recent purchase.
+- **Frequency:** Number of distinct purchase invoices, not line items.
+- **Monetary:** Gross purchase value in GBP; cancellations are reported separately.
+
+Apply `log1p`, standardize features, and evaluate **k=2–8** with inertia and silhouette scores (a reproducible sample of up to 2,000 customers). Select the highest silhouette score; use a fixed random seed. Cluster means inform transparent business labels and proposed experiments. Multiple clusters can share a business label. Silhouette measures geometric separation, not business benefit.
+
+For temporal validation, move the cutoff **90 days before the end of the dataset**. Fit all transforms and clusters using only the preceding year. For those customers, measure any later purchase and gross spend in the separate 90-day window, counting zero outcomes too. Newly acquired customers are excluded from this comparison. Report repeat-purchase rates, 95% Wilson proportion intervals, and a chi-square association test with expected cell counts.
+
+This tests an observational relationship, not a campaign's causal effect. Inactivity does not establish permanent churn. A later positive invoice counts as a repeat purchase even if subsequently cancelled. A randomized experiment would be required to measure retention lift from a recommendation.
+
+## Forecasting methodology
+
+Target: **weekly gross merchandise sales**, aggregated across all customers including anonymous purchases. Only full **Monday–Sunday** weeks inside source coverage are included; missing-sales days are zero-filled. First/last partial weeks are excluded.
+
+Candidates:
+
+- Last-observed-week baseline.
+- Same-week-last-year baseline (52-week lag).
+- Linear trend regression.
+- Linear trend plus annual sine/cosine terms.
+
+Reserve the **final 13 weeks** as an untouched test set. On earlier data, use **three expanding-window folds of eight weeks**, with at least 52 training weeks. Select by pooled validation MAE. Report MAE, RMSE and WAPE for every candidate on both validation and holdout; selection does not change after seeing holdout scores. Refit the selected method on all observed complete weeks to project **13 weeks from the historical data end**.
+
+No calibrated prediction intervals or guaranteed growth are claimed. Two years of data provide limited annual-seasonality evidence. A complex model may lose to a simple baseline; that outcome is retained in the reports.
+
+## Dashboard
+
+- **Sales & cancellations:** Country/date filters; gross sales, cancellation values and invoice share; daily trends, country/product breakdowns; filtered CSV export.
+- **Customer retention:** Segments and proposed actions, cluster evaluation, later-purchase validation, monthly retention and cohort tables; customer-segment export.
+- **Forecast validation:** Earlier validation and final test metrics, actual/holdout/future projection chart and forecast export.
+- **Data quality & methods:** Source attribution, reconciliation counts and methodological limits.
+
+Country/date filters apply to the Sales tab. Model evaluation tabs retain the full dataset's time windows so browsing cannot silently alter the evaluation.
+
+## Outputs
+
+```text
+src/prepare_data.py       Original-source download, cleaning and audit
+src/load_to_db.py         Atomic, validated database loading
+src/segmentation.py       RFM, K-Means, future-purchase validation
+src/forecasting.py        Weekly aggregation, baselines and time-ordered evaluation
+src/pipeline.py           Reproducible end-to-end runner and figures
+src/dashboard.py          Streamlit dashboard
+sql/schema.sql           Relational tables, integrity checks, indexes
+sql/analysis_queries.sql  Seven business queries
+reports/                 Actual CSV/JSON results and findings.md
+visuals/                 Generated real-data charts
+legacy/synthetic/        Archived simulation, excluded from real-data analysis
+```
+
+## Verification
+
+The tests cover reconciliation, exclusion policies, anonymous purchases, cancellation signs, atomic/idempotent loading, distinct-invoice RFM, cutoff leakage, cluster selection, future-outcome isolation, complete-week boundaries, forecasting baselines, validation/test separation and zero-denominator metrics. GitHub Actions runs these tests on pushes and pull requests without downloading real data.
+
+## Attribution
+
+Chen, D. (2012). **Online Retail II** [Dataset]. UCI Machine Learning Repository. [https://doi.org/10.24432/C5CG6D](https://doi.org/10.24432/C5CG6D). Licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). TransactIQ cleans, filters and aggregates the source and derives customer features/models; these modifications are described above and in the reconciliation report. This project is not affiliated with UCI, the retailer, Quantium or PhonePe.

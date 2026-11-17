@@ -1,0 +1,14 @@
+week,forecast_gbp,model
+2011-12-11,301082.39,seasonal_naive
+2011-12-18,208616.61,seasonal_naive
+2011-12-25,85279.63,seasonal_naive
+2012-01-01,0.0,seasonal_naive
+2012-01-08,130317.20000000001,seasonal_naive
+2012-01-15,187307.97000000003,seasonal_naive
+2012-01-22,209331.26,seasonal_naive
+2012-01-29,121001.73,seasonal_naive
+2012-02-05,121351.11,seasonal_naive
+2012-02-12,103570.48999999999,seasonal_naive
+2012-02-19,140371.78,seasonal_naive
+2012-02-26,145237.07,seasonal_naive
+2012-03-04,127588.34999999999,seasonal_naive

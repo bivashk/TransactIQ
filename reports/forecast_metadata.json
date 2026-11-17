@@ -1,0 +1,14 @@
+{
+  "selected_model": "seasonal_naive",
+  "selection_metric": "Lowest pooled rolling-validation MAE",
+  "complete_weeks": 104,
+  "validation_folds": 3,
+  "validation_weeks_per_fold": 8,
+  "holdout_weeks": 13,
+  "holdout_start": "2011-09-11",
+  "holdout_end": "2011-12-04",
+  "forecast_horizon_weeks": 13,
+  "target": "Weekly gross merchandise sales in GBP; excludes cancellation lines and non-merchandise adjustments.",
+  "uncertainty": "No calibrated prediction intervals claimed. Two annual cycles limit seasonality evidence.",
+  "forecast_context": "Historical forward projection from the dataset end, not a current sales forecast."
+}

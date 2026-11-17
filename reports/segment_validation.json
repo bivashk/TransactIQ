@@ -1,0 +1,16 @@
+{
+  "cutoff_exclusive_training": "2011-09-11",
+  "observation_end_exclusive": "2011-12-10",
+  "horizon_days": 90,
+  "training_lookback_days": 365,
+  "customers": 4302,
+  "chosen_k": 2,
+  "association": {
+    "test": "Chi-square: segment vs later purchase",
+    "p_value": 6.818098824424832e-149,
+    "minimum_expected_count": 724.8584379358438,
+    "chi_square": 675.361415198542,
+    "cramers_v": 0.39621683036145594
+  },
+  "limitation": "Observational historical validation; no causal or deployed retention improvement is measured."
+}
